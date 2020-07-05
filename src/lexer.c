@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 typedef enum tokenType { IDEN, OP, INT, FLT, STR, BOOL } type;
 
@@ -10,6 +11,55 @@ typedef struct Token {
     char *content;
 
 } token;
+
+//TODO: make list of reserved IDENs. true, false, print, any builtin functions, etc. this might go in the parser instead.
+
+// array of operators
+static const char operators[] = {
+    '#',
+    '(',
+    ')',
+    '{',
+    '}',
+    '/',
+    '?',
+    '+',
+    '-',
+    '*',
+    '=',
+    '!',
+    ',',
+};
+
+int isOperator(char character) {
+    for (int i = 0; i < sizeof(operators); i++) {
+        if (character == operators[i]) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void copyContent(char **content, char **currContent, int lineLength) {
+    *content = malloc(strlen(*currContent) + 1);
+    strcpy(*content, *currContent);
+}
+
+void resetValues(char **currContent, int lineLength, int *currCharacterNumber) {
+    memset(*currContent, 0, lineLength * sizeof(char));
+    *currCharacterNumber = 0;
+}
+
+void createAndStoreToken(int lineNumber, type tokenType, char *content, token **lineTokens, int *numLineTokens) {
+    token t = {
+        .line = lineNumber,
+        .type = tokenType,
+        .content = content,
+    };
+
+    (*lineTokens)[*numLineTokens] = t;
+    (*numLineTokens)++;
+}
 
 void tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTokens, int *maxLineCapacity) {
     int lineLength = strlen(line);
@@ -38,6 +88,8 @@ void tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineT
     char *currContent = malloc(lineLength * sizeof(char));
     int currCharacterNumber = 0;
 
+    char* content;
+
     for (int i = 0; line[i] != '\0';) {
         char currChar = line[i];
 
@@ -50,24 +102,63 @@ void tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineT
                 currCharacterNumber++;
                 //TODO: figure out escape characters
                 if (line[j] == '"') {
-                    //TODO: should it be strlen(currContent) or strlen(currContent) + 1?
-                    char *content = malloc(strlen(currContent) + 1);
-                    strcpy(content, currContent);
-                    token t = {
-                        .line = lineNumber,
-                        .type = STR,
-                        .content = content,
-                    };
+                    copyContent(&content, &currContent, lineLength);
+                    createAndStoreToken(lineNumber, STR, content, lineTokens, numLineTokens);
+                    resetValues(&currContent, lineLength, &currCharacterNumber);
 
-                    (*lineTokens)[*numLineTokens] = t;
-                    (*numLineTokens)++;
-                    
-                    memset(currContent, 0, lineLength * sizeof(char));
-                    currCharacterNumber = 0;
                     i = j + 1;
                     break;
                 }
             }
+            // TODO: if it reaches here, then there was no closing " for a string. Error here
+        
+        // check for identifier (var name)
+        } else if (isalpha(currChar)) {
+            currContent[currCharacterNumber] = currChar;
+            currCharacterNumber++;
+            for (int j = i + 1;; j++) {
+                if (isalnum(line[j])) {
+                    currContent[currCharacterNumber] = line[j];
+                    currCharacterNumber++;
+                } else {
+                    copyContent(&content, &currContent, lineLength);
+                    createAndStoreToken(lineNumber, IDEN, content, lineTokens, numLineTokens);
+                    resetValues(&currContent, lineLength, &currCharacterNumber);
+
+                    i = j;
+                    break;
+                }
+            }
+        } else if (isdigit(currChar)) {
+            currContent[currCharacterNumber] = currChar;
+            currCharacterNumber++;
+            type numType = INT;
+            for (int j = i + 1;; j++) {
+                if (isdigit(line[j])) {
+                    currContent[currCharacterNumber] = line[j];
+                    currCharacterNumber++;
+                } else if (line[j] == '.') {
+                    // TODO; if . is last character in number, throw an error. 33.0 is fine, 33. is not
+                    numType = FLT;
+                    currContent[currCharacterNumber] = line[j];
+                    currCharacterNumber++;
+                } else {
+                    copyContent(&content, &currContent, lineLength);
+                    createAndStoreToken(lineNumber, numType, content, lineTokens, numLineTokens);
+                    resetValues(&currContent, lineLength, &currCharacterNumber);
+
+                    i = j;
+                    break;
+                }
+            }
+        } else if (isOperator(currChar)) {
+            currContent[currCharacterNumber] = currChar;
+            currCharacterNumber++;
+            copyContent(&content, &currContent, lineLength);
+            createAndStoreToken(lineNumber, OP, content, lineTokens, numLineTokens);
+            resetValues(&currContent, lineLength, &currCharacterNumber);
+            
+            i++;
         } else {
             i++;
         }
@@ -120,12 +211,16 @@ token* tokenize(char* fileName) {
     }
 
     // print out all the tokens, for testing purposes
-    for (int i = 0; i < numTokens; i++) {
-        printf("Token: %d, Line: %d, Type: %d, Content: %s\n", i + 1, tokens[i].line, tokens[i].type, tokens[i].content);
-    }
+    // for (int i = 0; i < numTokens; i++) {
+    //     printf("Token: %d, Line: %d, Type: %d, Content: %s\n", i + 1, tokens[i].line, tokens[i].type, tokens[i].content);
+    // }
 
     free(lineTokens);
     fclose(file);
+
+    for (int i = 0; i < numTokens; i++) {
+        printf("[Token: %d, Line: %d, Type: %d, Content: %s]\n", i + 1, tokens[i].line, tokens[i].type, tokens[i].content);
+    }
 
     return tokens;
 }

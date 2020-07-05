@@ -1,9 +1,26 @@
-"This is a really long string lalalalalalala". "Right after is another long string". This shouldn't be a token.
-"This is"  "a test file"
-"This is" "a test file"   a
-a "This is" "a test file"
-"for string" hi "parsing".
-"This should be line 3"
-This isn't a string. "This is" "a string"
-Nothing should be tokenized as a string here
-Dang "another string!"
+#int
+count = 0
+
+#string
+name = "Tim"
+
+count = 1
+count = count + 1
+
+#int a
+#int b
+#int
+sum = {
+    return a + b
+}
+
+sum(count, count)
+
+#int
+number = 6;
+
+number > 5 ? {
+    print(number)
+} / default ? {
+    print("not greater than 5")
+}
