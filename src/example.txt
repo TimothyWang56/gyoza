@@ -1,0 +1,9 @@
+"This is a really long string lalalalalalala". "Right after is another long string". This shouldn't be a token.
+"This is"  "a test file"
+"This is" "a test file"   a
+a "This is" "a test file"
+"for string" hi "parsing".
+"This should be line 3"
+This isn't a string. "This is" "a string"
+Nothing should be tokenized as a string here
+Dang "another string!"
