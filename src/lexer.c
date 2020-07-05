@@ -2,15 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-
-typedef enum tokenType { IDEN, OP, INT, FLT, STR, BOOL } type;
-
-typedef struct Token {
-    int line;
-    type type;
-    char *content;
-
-} token;
+#include "tokens.h"
 
 //TODO: make list of reserved IDENs. true, false, print, any builtin functions, etc. this might go in the parser instead.
 
@@ -32,7 +24,7 @@ static const char operators[] = {
 };
 
 int isOperator(char character) {
-    for (int i = 0; i < sizeof(operators); i++) {
+    for (int i = 0; i < (int) sizeof(operators); i++) {
         if (character == operators[i]) {
             return 1;
         }
@@ -40,7 +32,7 @@ int isOperator(char character) {
     return 0;
 }
 
-void copyContent(char **content, char **currContent, int lineLength) {
+void copyContent(char **content, char **currContent) {
     *content = malloc(strlen(*currContent) + 1);
     strcpy(*content, *currContent);
 }
@@ -102,7 +94,7 @@ void tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineT
                 currCharacterNumber++;
                 //TODO: figure out escape characters
                 if (line[j] == '"') {
-                    copyContent(&content, &currContent, lineLength);
+                    copyContent(&content, &currContent);
                     createAndStoreToken(lineNumber, STR, content, lineTokens, numLineTokens);
                     resetValues(&currContent, lineLength, &currCharacterNumber);
 
@@ -121,7 +113,7 @@ void tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineT
                     currContent[currCharacterNumber] = line[j];
                     currCharacterNumber++;
                 } else {
-                    copyContent(&content, &currContent, lineLength);
+                    copyContent(&content, &currContent);
                     createAndStoreToken(lineNumber, IDEN, content, lineTokens, numLineTokens);
                     resetValues(&currContent, lineLength, &currCharacterNumber);
 
@@ -143,7 +135,7 @@ void tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineT
                     currContent[currCharacterNumber] = line[j];
                     currCharacterNumber++;
                 } else {
-                    copyContent(&content, &currContent, lineLength);
+                    copyContent(&content, &currContent);
                     createAndStoreToken(lineNumber, numType, content, lineTokens, numLineTokens);
                     resetValues(&currContent, lineLength, &currCharacterNumber);
 
@@ -154,7 +146,7 @@ void tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineT
         } else if (isOperator(currChar)) {
             currContent[currCharacterNumber] = currChar;
             currCharacterNumber++;
-            copyContent(&content, &currContent, lineLength);
+            copyContent(&content, &currContent);
             createAndStoreToken(lineNumber, OP, content, lineTokens, numLineTokens);
             resetValues(&currContent, lineLength, &currCharacterNumber);
             
@@ -167,16 +159,16 @@ void tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineT
     free(currContent);
 }
 
-// NOTE: whatever calls this functino must free tokens and the contents of the tokens after using them
-token* tokenize(char* fileName) {
+// NOTE: whatever calls this function must free tokens and the contents of the tokens after using them
+void tokenize(char* fileName, token **tokens, int *numTokens) {
     FILE* file = fopen(fileName, "r");
     char line[256];
     int lineNumber = 1;
     
     int defaultSize = 10;
     int maxCapacity = defaultSize;
-    token *tokens = malloc(sizeof(token) * maxCapacity);
-    int numTokens = 0;
+    *tokens = malloc(sizeof(token) * maxCapacity);
+    *numTokens = 0;
 
     int defaultLineTokensSize = 10;
     int maxLineCapacity = defaultLineTokensSize;
@@ -192,40 +184,25 @@ token* tokenize(char* fileName) {
         tokenizeLine(line, lineNumber, &numLineTokens, &lineTokens, &maxLineCapacity);
         // loop over all line tokens to add them into tokens array.
         for (int i = 0; i < numLineTokens; i++) {
-            if (numTokens >= maxCapacity) {
+            if (*numTokens >= maxCapacity) {
                 printf("reallocing tokens... old size: %d, new size: %d\n", maxCapacity, maxCapacity * 2);
                 maxCapacity *= 2;
-                token *temp = realloc(tokens, sizeof(token) * maxCapacity);
+                token *temp = realloc(*tokens, sizeof(token) * maxCapacity);
                 if (temp == NULL) {
                     // handle error when realloc isn't successful
                 } else {
-                    tokens = temp;
+                    *tokens = temp;
                 }
             }
 
-            tokens[numTokens] = lineTokens[i];
-            numTokens++;
+            (*tokens)[*numTokens] = lineTokens[i];
+            (*numTokens)++;
         }
 
         lineNumber++;
     }
 
-    // print out all the tokens, for testing purposes
-    // for (int i = 0; i < numTokens; i++) {
-    //     printf("Token: %d, Line: %d, Type: %d, Content: %s\n", i + 1, tokens[i].line, tokens[i].type, tokens[i].content);
-    // }
-
     free(lineTokens);
     fclose(file);
-
-    for (int i = 0; i < numTokens; i++) {
-        printf("[Token: %d, Line: %d, Type: %d, Content: %s]\n", i + 1, tokens[i].line, tokens[i].type, tokens[i].content);
-    }
-
-    return tokens;
-}
-
-int main() {
-    tokenize("example.txt");
-    return 0;
+    return;
 }
