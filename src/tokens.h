@@ -1,4 +1,4 @@
-typedef enum tokenType { IDEN, OP, INT, FLT, STR, BOOL } type;
+typedef enum tokenType { IDEN, OP, INT, FLT, STR } type;
 
 typedef struct Token {
     int line;

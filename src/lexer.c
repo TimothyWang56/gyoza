@@ -42,18 +42,21 @@ void resetValues(char **currContent, int lineLength, int *currCharacterNumber) {
     *currCharacterNumber = 0;
 }
 
-void createAndStoreToken(int lineNumber, type tokenType, char *content, token **lineTokens, int *numLineTokens) {
+void createAndStoreToken(int lineNumber, type tokenType, char **content, token **lineTokens, int *numLineTokens) {
     token t = {
         .line = lineNumber,
         .type = tokenType,
-        .content = content,
+        .content = *content,
     };
 
     (*lineTokens)[*numLineTokens] = t;
     (*numLineTokens)++;
 }
 
-void tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTokens, int *maxLineCapacity) {
+// returns 1 if successful, 0 otherwise
+int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTokens, int *maxLineCapacity) {
+    int returnVal = 1;
+
     int lineLength = strlen(line);
     // strip of \n if line has it at the end
     if (lineLength > 0 && line[lineLength - 1] == '\n') {
@@ -89,22 +92,29 @@ void tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineT
         if (currChar == '"') {
             currContent[currCharacterNumber] = '"';
             currCharacterNumber++;
+            int stringClosed = 0;
             for (int j = i + 1; line[j] != '\0'; j++) {
                 currContent[currCharacterNumber] = line[j];
                 currCharacterNumber++;
                 //TODO: figure out escape characters
                 if (line[j] == '"') {
                     copyContent(&content, &currContent);
-                    createAndStoreToken(lineNumber, STR, content, lineTokens, numLineTokens);
+                    createAndStoreToken(lineNumber, STR, &content, lineTokens, numLineTokens);
                     resetValues(&currContent, lineLength, &currCharacterNumber);
 
+                    stringClosed = 1;
                     i = j + 1;
                     break;
                 }
             }
-            // TODO: if it reaches here, then there was no closing " for a string. Error here
-        
-        // check for identifier (var name)
+
+            // check if string was closed by another double-quote (")
+            if (!stringClosed) {
+                printf("ERROR: did not close string on line %d\n", lineNumber);
+                returnVal = 0;
+                break;
+            }
+        // check for identifier
         } else if (isalpha(currChar)) {
             currContent[currCharacterNumber] = currChar;
             currCharacterNumber++;
@@ -114,7 +124,7 @@ void tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineT
                     currCharacterNumber++;
                 } else {
                     copyContent(&content, &currContent);
-                    createAndStoreToken(lineNumber, IDEN, content, lineTokens, numLineTokens);
+                    createAndStoreToken(lineNumber, IDEN, &content, lineTokens, numLineTokens);
                     resetValues(&currContent, lineLength, &currCharacterNumber);
 
                     i = j;
@@ -125,29 +135,61 @@ void tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineT
             currContent[currCharacterNumber] = currChar;
             currCharacterNumber++;
             type numType = INT;
+            int decimalFound = 0;
+            int validNumber = 0;
             for (int j = i + 1;; j++) {
                 if (isdigit(line[j])) {
                     currContent[currCharacterNumber] = line[j];
                     currCharacterNumber++;
                 } else if (line[j] == '.') {
-                    // TODO; if . is last character in number, throw an error. 33.0 is fine, 33. is not
-                    numType = FLT;
-                    currContent[currCharacterNumber] = line[j];
-                    currCharacterNumber++;
-                } else {
+                    // check if previous decimal has already been found for the current number being tokenized
+                    if (decimalFound) {
+                        break;
+                    } else {
+                        decimalFound = 1;
+                    }
+                    // check if there's at least 1 number after the decimal place
+                    if (isdigit(line[j + 1])) {
+                        numType = FLT;
+                        currContent[currCharacterNumber] = line[j];
+                        currCharacterNumber++;
+                    } else {
+                        break;
+                    }
+                } else if (line[j] == ' ' || line[j] == '\0') {
                     copyContent(&content, &currContent);
-                    createAndStoreToken(lineNumber, numType, content, lineTokens, numLineTokens);
+                    createAndStoreToken(lineNumber, numType, &content, lineTokens, numLineTokens);
                     resetValues(&currContent, lineLength, &currCharacterNumber);
 
+                    validNumber = 1;
                     i = j;
                     break;
+                } else {
+                    break;
                 }
+            }
+
+            // check if valid number was inputted
+            if (!validNumber) {
+                printf("ERROR: ill-formed number on line %d\n", lineNumber);
+                returnVal = 0;
+                break;
             }
         } else if (isOperator(currChar)) {
             currContent[currCharacterNumber] = currChar;
             currCharacterNumber++;
+
+            // handle 2 character operators
+            if ((currChar == '!' && line[i+1] == '=') ||
+                (currChar == '/' && line[i+1] == '/') ||
+                (currChar == '=' && line[i+1] == '=')) {
+                currContent[currCharacterNumber] = line[i + 1];
+                currCharacterNumber++;
+                i++;
+            }
+
             copyContent(&content, &currContent);
-            createAndStoreToken(lineNumber, OP, content, lineTokens, numLineTokens);
+            createAndStoreToken(lineNumber, OP, &content, lineTokens, numLineTokens);
             resetValues(&currContent, lineLength, &currCharacterNumber);
             
             i++;
@@ -157,10 +199,12 @@ void tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineT
     }
 
     free(currContent);
+
+    return returnVal;
 }
 
 // NOTE: whatever calls this function must free tokens and the contents of the tokens after using them
-void tokenize(char* fileName, token **tokens, int *numTokens) {
+int tokenize(char* fileName, token **tokens, int *numTokens) {
     FILE* file = fopen(fileName, "r");
     char line[256];
     int lineNumber = 1;
@@ -175,34 +219,40 @@ void tokenize(char* fileName, token **tokens, int *numTokens) {
     token *lineTokens = malloc(sizeof(token) * maxLineCapacity);
     int numLineTokens = 0;
 
+    int returnVal = 1;
+
     // read file line by line
     while (fgets(line, sizeof(line), file)) {
         // numLineTokens, lineTokens, and maxLineCapacity will be changed from tokenizeLine call.
         // numLineTokens will be the number of tokens in the line.
         // lineTokens will contain exactly numLineTokens number of tokens.
         // maxLineCapacity is the max number of tokens in a line, and will be increased if necessary.
-        tokenizeLine(line, lineNumber, &numLineTokens, &lineTokens, &maxLineCapacity);
-        // loop over all line tokens to add them into tokens array.
-        for (int i = 0; i < numLineTokens; i++) {
-            if (*numTokens >= maxCapacity) {
-                printf("reallocing tokens... old size: %d, new size: %d\n", maxCapacity, maxCapacity * 2);
-                maxCapacity *= 2;
-                token *temp = realloc(*tokens, sizeof(token) * maxCapacity);
-                if (temp == NULL) {
-                    // handle error when realloc isn't successful
-                } else {
-                    *tokens = temp;
+        returnVal = tokenizeLine(line, lineNumber, &numLineTokens, &lineTokens, &maxLineCapacity);
+        if (returnVal) {
+            // loop over all line tokens to add them into tokens array.
+            for (int i = 0; i < numLineTokens; i++) {
+                if (*numTokens >= maxCapacity) {
+                    printf("reallocing tokens... old size: %d, new size: %d\n", maxCapacity, maxCapacity * 2);
+                    maxCapacity *= 2;
+                    token *temp = realloc(*tokens, sizeof(token) * maxCapacity);
+                    if (temp == NULL) {
+                        // handle error when realloc isn't successful
+                    } else {
+                        *tokens = temp;
+                    }
                 }
+
+                (*tokens)[*numTokens] = lineTokens[i];
+                (*numTokens)++;
             }
 
-            (*tokens)[*numTokens] = lineTokens[i];
-            (*numTokens)++;
+            lineNumber++;
+        } else {
+            break;
         }
-
-        lineNumber++;
     }
 
     free(lineTokens);
     fclose(file);
-    return;
+    return returnVal;
 }
