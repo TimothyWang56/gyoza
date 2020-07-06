@@ -1,1 +1,3 @@
-src/lexer
+src/gyoza
+src/gyoza.dSYM/*
+src/*.txt
