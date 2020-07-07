@@ -94,10 +94,24 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
             currCharacterNumber++;
             int stringClosed = 0;
             for (int j = i + 1; line[j] != '\0'; j++) {
-                currContent[currCharacterNumber] = line[j];
-                currCharacterNumber++;
-                //TODO: figure out escape characters
-                if (line[j] == '"') {
+                // handle escaped characters
+                if (line[j] == '\\') {
+                    j++;
+                    if (line[j] == '\\' || line[j] == '"') {
+                        currContent[currCharacterNumber] = line[j];
+                        currCharacterNumber++;
+                    } else if (line[j] == 'n') {
+                        currContent[currCharacterNumber] = '\n';
+                        currCharacterNumber++;
+                    } else if (line[j] == 't') {
+                        currContent[currCharacterNumber] = '\t';
+                        currCharacterNumber++;
+                    } else {
+                        break;
+                    }
+                } else if (line[j] == '"') {
+                    currContent[currCharacterNumber] = line[j];
+                    currCharacterNumber++;
                     copyContent(&content, &currContent);
                     createAndStoreToken(lineNumber, STR, &content, lineTokens, numLineTokens);
                     resetValues(&currContent, lineLength, &currCharacterNumber);
@@ -105,6 +119,9 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
                     stringClosed = 1;
                     i = j + 1;
                     break;
+                } else {
+                    currContent[currCharacterNumber] = line[j];
+                    currCharacterNumber++;
                 }
             }
 
