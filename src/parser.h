@@ -2,6 +2,8 @@
 #define PARSER_SEEN
 
 #include "tokens.h"
-int buildAST(token *tokens, int numTokens);
+#include "nodes.h"
+
+int buildAST(token *tokens, int numTokens, abstractNode **root);
 
 #endif

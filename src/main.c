@@ -16,6 +16,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    // tokenize using lexer
     token *tokens;
     int numTokens;
     int returnVal = tokenize(argv[1], &tokens, &numTokens);
@@ -26,11 +27,14 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    for (int i = 0; i < numTokens; i++) {
-        printf("[Line: %d, Type: %d, Content: %s]\n", tokens[i].line, tokens[i].type, tokens[i].content);
+    // make abstract syntax tree using parser
+    abstractNode *root;
+    returnVal = buildAST(tokens, numTokens, &root);
+    
+    if (!returnVal) {
+        // clean up ast and maybe tokens, depending on how we're handling it
+        return -1;
     }
-
-    returnVal = buildAST(tokens, numTokens);
 
     cleanTokens(&tokens, numTokens);
     return 0;

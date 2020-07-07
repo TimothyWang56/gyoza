@@ -1,7 +1,8 @@
 #ifndef NODES_SEEN
 #define NODES_SEEN
 
-typedef enum NodeType { LITERAL, BINARY, IF, CONDITION, BODY, ELSE, FUNCDEF, ASSIGN, VAR } nodeType;
+// BINARYs are special FUNCCALLs, like +, -, /, *, >, < ==, != and use infix notation
+typedef enum NodeType { LITERAL, BINARY, IF, IFELSE, CONDITION, BODY, FUNCDEF, FUNCCALL, ASSIGNVAR, VAR } nodeType;
 
 typedef struct AbstractSyntaxTreeNode {
     nodeType type;
