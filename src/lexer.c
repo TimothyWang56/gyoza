@@ -23,6 +23,9 @@ static const char operators[] = {
     ',',
     '<',
     '>',
+    // maybe figure out a better way to handle this, since && and || are valid, but & and | are not
+    '&',
+    '|',
 };
 
 int isOperator(char character) {
@@ -128,7 +131,7 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
 
             // check if string was closed by another double-quote (")
             if (!stringClosed) {
-                printf("ERROR: did not close string on line %d\n", lineNumber);
+                printf("ERROR - line %d: did not close string\n", lineNumber);
                 returnVal = 0;
                 break;
             }
@@ -189,7 +192,7 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
 
             // check if valid number was inputted
             if (!validNumber) {
-                printf("ERROR: ill-formed number on line %d\n", lineNumber);
+                printf("ERROR - line %d: ill-formed number\n", lineNumber);
                 returnVal = 0;
                 break;
             }
@@ -206,6 +209,17 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
                 currContent[currCharacterNumber] = line[i + 1];
                 currCharacterNumber++;
                 i++;
+            } else if (currChar == '|' || currChar == '&') {
+                if ((currChar == '|' && line[i+1] == '|') ||
+                    (currChar == '&' && line[i+1] == '&')) {
+                    currContent[currCharacterNumber] = line[i + 1];
+                    currCharacterNumber++;
+                    i++;
+                } else {
+                    printf("ERROR - line %d: use of %c is not permitted. Did you mean to use %c%c?\n", lineNumber, currChar, currChar, currChar);
+                    returnVal = 0;
+                    break;
+                }
             }
 
             copyContent(&content, &currContent);
