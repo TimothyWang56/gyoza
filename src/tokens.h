@@ -1,3 +1,6 @@
+#ifndef TOKENS_SEEN
+#define TOKENS_SEEN
+
 typedef enum TokenType { IDEN, OP, INT, FLT, STR } tokenType;
 
 typedef struct Token {
@@ -6,3 +9,6 @@ typedef struct Token {
     char *content;
 
 } token;
+
+
+#endif

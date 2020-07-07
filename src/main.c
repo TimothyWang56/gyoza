@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "lexer.h"
+#include "parser.h"
 
 void cleanTokens(token **tokens, int numTokens) {
     for (int i = 0; i < numTokens; i++) {
@@ -28,6 +29,8 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < numTokens; i++) {
         printf("[Line: %d, Type: %d, Content: %s]\n", tokens[i].line, tokens[i].type, tokens[i].content);
     }
+
+    returnVal = buildAST(tokens, numTokens);
 
     cleanTokens(&tokens, numTokens);
     return 0;
