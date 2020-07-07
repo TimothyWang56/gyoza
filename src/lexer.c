@@ -21,6 +21,8 @@ static const char operators[] = {
     '=',
     '!',
     ',',
+    '<',
+    '>',
 };
 
 int isOperator(char character) {
@@ -198,7 +200,9 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
             // handle 2 character operators
             if ((currChar == '!' && line[i+1] == '=') ||
                 (currChar == '/' && line[i+1] == '/') ||
-                (currChar == '=' && line[i+1] == '=')) {
+                (currChar == '=' && line[i+1] == '=') ||
+                (currChar == '<' && line[i+1] == '=') ||
+                (currChar == '>' && line[i+1] == '=')) {
                 currContent[currCharacterNumber] = line[i + 1];
                 currCharacterNumber++;
                 i++;
