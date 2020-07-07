@@ -42,7 +42,7 @@ void resetValues(char **currContent, int lineLength, int *currCharacterNumber) {
     *currCharacterNumber = 0;
 }
 
-void createAndStoreToken(int lineNumber, type tokenType, char **content, token **lineTokens, int *numLineTokens) {
+void createAndStoreToken(int lineNumber, tokenType tokenType, char **content, token **lineTokens, int *numLineTokens) {
     token t = {
         .line = lineNumber,
         .type = tokenType,
@@ -150,7 +150,7 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
         } else if (isdigit(currChar)) {
             currContent[currCharacterNumber] = currChar;
             currCharacterNumber++;
-            type numType = INT;
+            tokenType numType = INT;
             int decimalFound = 0;
             int validNumber = 0;
             for (int j = i + 1;; j++) {
