@@ -156,6 +156,7 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
             currContent[currCharacterNumber] = currChar;
             currCharacterNumber++;
             int decimalFound = 0;
+            tokenType numType = INT;
             int validNumber = 0;
             for (int j = i + 1;; j++) {
                 if (isdigit(line[j])) {
@@ -170,6 +171,7 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
                     }
                     // check if there's at least 1 number after the decimal place
                     if (isdigit(line[j + 1])) {
+                        numType = FLT;
                         currContent[currCharacterNumber] = line[j];
                         currCharacterNumber++;
                     } else {
@@ -177,7 +179,7 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
                     }
                 } else if (line[j] == ' ' || line[j] == '\0' || line[j] == ')') {
                     copyContent(&content, &currContent);
-                    createAndStoreToken(lineNumber, NUM, &content, lineTokens, numLineTokens);
+                    createAndStoreToken(lineNumber, numType, &content, lineTokens, numLineTokens);
                     resetValues(&currContent, lineLength, &currCharacterNumber);
 
                     validNumber = 1;

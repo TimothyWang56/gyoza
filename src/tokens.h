@@ -1,7 +1,7 @@
 #ifndef TOKENS_SEEN
 #define TOKENS_SEEN
 
-typedef enum TokenType { IDEN, OP, NUM, STR } tokenType;
+typedef enum TokenType { IDEN, OP, INT, FLT, STR } tokenType;
 
 typedef struct Token {
     int line;

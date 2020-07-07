@@ -7,6 +7,7 @@
 // Outline for AST Structure
 
 // LITERAL will have the literal as it's content and no children. int, float, str are all literals.
+//      this will be split into NUM_LITERAL and STRING_LITERAL
 // BINARY will have one of the binary operators (+, -, /, *, >, <, >=, <=, ==, !=, &&, ||) in content, and children[0] and children[1] will be 
 //      the arguments for the binary operator. They could be a VAR, LITERAL, or FUNCCALL
 // IF will have a CONDITION in children[0] and BODY in children[1]. nothing in content
@@ -27,7 +28,8 @@ void buildNode(abstractNode **node, nodeType type, char *content) {
     (*node)->content = content;
     int numChildren;
     switch (type) {
-        case NUM_LITERAL :
+        case INT_LITERAL :
+        case FLOAT_LITERAL :
         case STRING_LITERAL :
         case VAR :
             numChildren = 0;
@@ -58,20 +60,33 @@ void buildNode(abstractNode **node, nodeType type, char *content) {
     (*node)->children = malloc(sizeof(abstractNode) * numChildren);
 }
 
-int buildAST(token *tokens, int numTokens, abstractNode **root) {
-    *root = malloc(sizeof(abstractNode));
-    (*root)->type = BODY;
-    
-    (*root)->numChildren = 10;
+// NOTE: have an int passed around that tells which token number we're on
 
-    
-    if (*root == NULL) {
+abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
+    abstractNode *root;
+    buildNode(&root, BODY, "");
+
+    if (root == NULL) {
         //handle error here
         return 0;
     }
 
+    while (*currToken < numTokens) {
+        // determine what kind of NodeType we're making?
+        (*currToken)++;
+    }
+    // abstractNode *currNode = (*root);
+
     for (int i = 0; i < numTokens; i++) {
         printf("[Line: %d, Type: %d, Content: %s]\n", tokens[i].line, tokens[i].type, tokens[i].content);
+        // if (tokens[i])
     }
+
+    return root;
+}
+
+int build(token *tokens, int numTokens, abstractNode **root) {
+    int currToken = 0;
+    *root = buildBody(tokens, numTokens, &currToken);
     return 1;
 }

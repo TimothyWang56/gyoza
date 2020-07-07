@@ -4,6 +4,6 @@
 #include "tokens.h"
 #include "nodes.h"
 
-int buildAST(token *tokens, int numTokens, abstractNode **root);
+int build(token *tokens, int numTokens, abstractNode **root);
 
 #endif

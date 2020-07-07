@@ -29,13 +29,15 @@ int main(int argc, char *argv[]) {
 
     // make abstract syntax tree using parser
     abstractNode *root;
-    returnVal = buildAST(tokens, numTokens, &root);
+    returnVal = build(tokens, numTokens, &root);
     
     if (!returnVal) {
-        // clean up ast and maybe tokens, depending on how we're handling it
+        // TODO: clean up ast and maybe tokens, depending on how we're handling it
         return -1;
     }
 
+    // TODO: free ast
+    free(root->children);
     free(root);
 
     cleanTokens(&tokens, numTokens);
