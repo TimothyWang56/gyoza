@@ -177,7 +177,7 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
                     } else {
                         break;
                     }
-                } else if (line[j] == ' ' || line[j] == '\0') {
+                } else if (line[j] == ' ' || line[j] == '\0' || line[j] == ')') {
                     copyContent(&content, &currContent);
                     createAndStoreToken(lineNumber, numType, &content, lineTokens, numLineTokens);
                     resetValues(&currContent, lineLength, &currCharacterNumber);
