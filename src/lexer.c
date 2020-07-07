@@ -109,19 +109,18 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
                     } else {
                         break;
                     }
-                } else if (line[j] == '"') {
-                    currContent[currCharacterNumber] = line[j];
-                    currCharacterNumber++;
-                    copyContent(&content, &currContent);
-                    createAndStoreToken(lineNumber, STR, &content, lineTokens, numLineTokens);
-                    resetValues(&currContent, lineLength, &currCharacterNumber);
-
-                    stringClosed = 1;
-                    i = j + 1;
-                    break;
                 } else {
                     currContent[currCharacterNumber] = line[j];
                     currCharacterNumber++;
+                    if (line[j] == '"') {
+                        copyContent(&content, &currContent);
+                        createAndStoreToken(lineNumber, STR, &content, lineTokens, numLineTokens);
+                        resetValues(&currContent, lineLength, &currCharacterNumber);
+
+                        stringClosed = 1;
+                        i = j + 1;
+                        break;
+                    }
                 }
             }
 
