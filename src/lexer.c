@@ -47,10 +47,10 @@ void resetValues(char **currContent, int lineLength, int *currCharacterNumber) {
     *currCharacterNumber = 0;
 }
 
-void createAndStoreToken(int lineNumber, tokenType tokenType, char **content, token **lineTokens, int *numLineTokens) {
+void createAndStoreToken(int lineNumber, tokenType type, char **content, token **lineTokens, int *numLineTokens) {
     token t = {
         .line = lineNumber,
-        .type = tokenType,
+        .type = type,
         .content = *content,
     };
 
@@ -155,7 +155,6 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
         } else if (isdigit(currChar)) {
             currContent[currCharacterNumber] = currChar;
             currCharacterNumber++;
-            tokenType numType = INT;
             int decimalFound = 0;
             int validNumber = 0;
             for (int j = i + 1;; j++) {
@@ -171,7 +170,6 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
                     }
                     // check if there's at least 1 number after the decimal place
                     if (isdigit(line[j + 1])) {
-                        numType = FLT;
                         currContent[currCharacterNumber] = line[j];
                         currCharacterNumber++;
                     } else {
@@ -179,7 +177,7 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
                     }
                 } else if (line[j] == ' ' || line[j] == '\0' || line[j] == ')') {
                     copyContent(&content, &currContent);
-                    createAndStoreToken(lineNumber, numType, &content, lineTokens, numLineTokens);
+                    createAndStoreToken(lineNumber, NUM, &content, lineTokens, numLineTokens);
                     resetValues(&currContent, lineLength, &currCharacterNumber);
 
                     validNumber = 1;

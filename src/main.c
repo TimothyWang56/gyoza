@@ -36,6 +36,8 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    free(root);
+
     cleanTokens(&tokens, numTokens);
     return 0;
 }
