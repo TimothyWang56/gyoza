@@ -8,7 +8,7 @@ typedef struct AbstractSyntaxTreeNode {
     nodeType type;
     char *content;
     int numChildren;
-    struct AbstractSyntaxTreeNode *children;
+    struct AbstractSyntaxTreeNode **children;
 
 } abstractNode;
 
