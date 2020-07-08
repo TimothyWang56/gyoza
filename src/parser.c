@@ -64,6 +64,73 @@ abstractNode *buildNode(nodeType type, char *content) {
     return node;
 }
 
+void printAST(abstractNode *node, char* currLeadSpace, char* leadSpaceIncrement) {
+    char *type;
+    switch (node->type) {
+        case INT_LITERAL:
+            type = "INT_LITERAL";
+            break;
+        case FLOAT_LITERAL:
+            type = "FLOAT_LITERAL";
+            break;
+        case STRING_LITERAL:
+            type = "STRING_LITERAL";
+            break;
+        case BINARY:
+            type = "BINARY";
+            break;
+        case IF:
+            type = "IF";
+            break;
+        case IFELSE:
+            type = "IFELSE";
+            break;
+        case CONDITION:
+            type = "CONDITION";
+            break;
+        case BODY:
+            type = "BODY";
+            break;
+        case FUNCDEF:
+            type = "FUNCDEF";
+            break;
+        case FUNCCALL:
+            type = "FUNCCALL";
+            break;
+        case ASSIGNVAR:
+            type = "ASSIGNVAR";
+            break;
+        case VAR:
+            type = "VAR";
+            break;
+    }
+    
+    printf("%sType: %s\n", currLeadSpace, type);
+    printf("%sContent: %s\n", currLeadSpace, node->content);
+    printf("%sNum Children: %d\n", currLeadSpace, node->numChildren);
+    printf("%s--------------\n", currLeadSpace);
+    for (int i = 0; i < node->numChildren; i++) {
+        char *newLeadSpace = malloc(strlen(currLeadSpace) + strlen(leadSpaceIncrement) + 1);
+        strcpy(newLeadSpace, currLeadSpace);
+        strcat(newLeadSpace, leadSpaceIncrement);
+        printAST(node->children[i], newLeadSpace, leadSpaceIncrement);
+    }
+}
+
+// only used for abstract nodes with arbitrary number of children, BODY and FUNCCALL
+// will add 1 child and realloc for more space
+void addChild(abstractNode *node, abstractNode *child) {
+    int index = node->numChildren;
+    (node->numChildren)++;
+    abstractNode *temp = realloc(*(node->children), sizeof(abstractNode) * (node->numChildren));
+    if (temp == NULL) {
+        // figure out how to error
+    } else {
+        *(node->children) = temp;
+        (node->children)[index] = child;
+    }
+}
+
 abstractNode *buildLit(token *tokens, int numTokens, int *currToken) {
     if (*currToken >= numTokens) {
         // TODO: figure out a good way to handle this error;
@@ -102,6 +169,120 @@ abstractNode *buildVar(token *tokens, int numTokens, int *currToken) {
         return node;
     } else {
         printf("ERROR - line %d: expected an identifier at the beginning of this line\n", tokens[*currToken].line);
+        return NULL;
+    }
+}
+
+// determines if function argument is a FUNCCALL or not
+//      FUNCCALL would be IDEN(...), or IDEN(...))
+int funcCallArg(token *tokens, int numTokens, int currToken) {
+    if (currToken < numTokens) {
+        if (tokens[currToken].type == IDEN) {
+            currToken++;
+            if (tokens[currToken].type == OP &&
+                !strcmp(tokens[currToken].content, "(")) {
+                currToken++;
+                int openParens = 1;
+                int closeParens = 0;
+                while (currToken < numTokens) {
+                    if (tokens[currToken].type == OP) {
+                        if (!strcmp(tokens[currToken].content, "(")) {
+                            openParens++;
+                        } else if (!strcmp(tokens[currToken].content, ")")) {
+                            closeParens++;
+                        }
+                    }
+
+                    currToken++;
+                    if (openParens == closeParens) {
+                        break;
+                    }
+                }
+
+                if (openParens == closeParens) {
+                    if (tokens[currToken].type == OP &&
+                        (!strcmp(tokens[currToken].content, ")") ||
+                        !strcmp(tokens[currToken].content, ",") )) {
+                            return 1;
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken) {
+    if (*currToken >= numTokens) {
+        // TODO: figure out a good way to handle this error;
+        printf("ERROR: currToken >= numTokens in buildLit\n");
+        return NULL;
+    }
+
+    abstractNode *node;
+    if (tokens[*currToken].type == IDEN) {
+        node = buildNode(FUNCCALL, tokens[*currToken].content);
+        (*currToken)++;
+        if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "(")) {
+            (*currToken)++;
+            int funcCallClosed = 0;
+            while (*currToken < numTokens) {
+                // arguments can be LITERAL, FUNCCALL, BINARY, or VAR
+
+                // VAR case
+                if (tokens[*currToken].type == IDEN &&
+                    tokens[(*currToken) + 1].type == OP &&
+                    (!strcmp(tokens[(*currToken) + 1].content, ",") ||
+                    !strcmp(tokens[(*currToken) + 1].content, ")"))) {
+                    abstractNode *child = buildVar(tokens, numTokens, currToken);
+                    addChild(node, child);
+                // LITERAL case
+                } else if ((tokens[*currToken].type == STR ||
+                    tokens[*currToken].type == FLT ||
+                    tokens[*currToken].type == INT) &&
+                    tokens[(*currToken) + 1].type == OP &&
+                    (!strcmp(tokens[(*currToken) + 1].content, ",") ||
+                    !strcmp(tokens[(*currToken) + 1].content, ")"))) {
+                    abstractNode *child = buildLit(tokens, numTokens, currToken);
+                    addChild(node, child);
+                // FUNCCALL case
+                } else if (funcCallArg(tokens, numTokens, *currToken)) {
+
+                // BINARY   
+                } else {
+
+                }
+
+                if (tokens[(*currToken)].type == OP) {
+                    if (!strcmp(tokens[*currToken].content, ")")) {
+                        funcCallClosed = 1;
+                        (*currToken)++;
+                        break;
+                    } else if (!strcmp(tokens[*currToken].content, ",")) {
+                        (*currToken)++;
+                    } else {
+                        printf("ERROR: expected , or )");
+                        break;
+                    }
+                } else {
+                    printf("ERROR - line %d: \n", tokens[*currToken].line);
+                    return NULL;
+                }
+            }
+
+            if (funcCallClosed) {
+                return node;
+            } else {
+                printf("ERROR: error in function call\n");
+                return NULL;
+            }
+
+        } else {
+            printf("ERROR - line %d: expected a '(' after the function name\n", tokens[*currToken].line);
+            return NULL;
+        }
+    } else {
+        printf("ERROR - line %d: expected an identifier for a function call\n", tokens[*currToken].line);
         return NULL;
     }
 }
@@ -147,20 +328,6 @@ abstractNode *buildAssignVar(token *tokens, int numTokens, int *currToken) {
         }
     } else {
         return NULL;
-    }
-}
-
-// only used for abstract nodes with arbitrary number of children, BODY and FUNCCALL
-// will add 1 child and realloc for more space
-void addChild(abstractNode *node, abstractNode *child) {
-    int index = node->numChildren;
-    (node->numChildren)++;
-    abstractNode *temp = realloc(*(node->children), sizeof(abstractNode) * (node->numChildren));
-    if (temp == NULL) {
-        // figure out how to error
-    } else {
-        *(node->children) = temp;
-        (node->children)[index] = child;
     }
 }
 
@@ -213,9 +380,6 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
         }
     }
 
-    // printf("%d, %d, %s, %d\n", node->type, (node->children[0])->type, (node->children[0])->content, (node->children[0])->children[0]->type);
-
-
     // printf("%d, %d, %s, %d, %s, %d, %s\n", node->type, (node->children[0])->type, (node->children[0])->content, (node->children[0])->children[0]->type, (node->children[0])->children[0]->content, (node->children[0])->children[1]->type, (node->children[0])->children[1]->content);
     // printf("%d, %d, %s, %d, %s, %d, %s\n", node->type, (node->children[1])->type, (node->children[1])->content, (node->children[1])->children[0]->type, (node->children[1])->children[0]->content, (node->children[1])->children[1]->type, (node->children[1])->children[1]->content);
 
@@ -230,6 +394,7 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
 int build(token *tokens, int numTokens, abstractNode **root) {
     int currToken = 0;
     *root = buildBody(tokens, numTokens, &currToken);
+    printAST(*root, "", "     ");
     // TODO: ERROR check *root isn't null
     return 1;
 }
