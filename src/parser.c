@@ -50,15 +50,16 @@ abstractNode *buildNode(nodeType type, char *content) {
         case BODY :
         case FUNCCALL :
         // 10 is abitrary here, since BODY and FUNCCALL can have any number of children. Maybe figure out a better way to handle this?
-            numChildren = 10;
+            numChildren = 0;
             break;
         default:
         // figure out the default case here? maybe error
-            numChildren = 10;
+            numChildren = 0;
     }
 
     node->numChildren = numChildren;
-    node->children = malloc(sizeof(abstractNode*) * numChildren);
+    node->children = malloc(sizeof(abstractNode*));
+    *(node->children) = malloc(sizeof(abstractNode*) * numChildren);
     return node;
 }
 
@@ -148,6 +149,20 @@ abstractNode *buildAssignVar(token *tokens, int numTokens, int *currToken) {
     }
 }
 
+// only used for abstract nodes with arbitrary number of children, BODY and FUNCCALL
+// will add 1 child and realloc for more space
+void addChild(abstractNode *node, abstractNode *child) {
+    int index = node->numChildren;
+    (node->numChildren)++;
+    abstractNode *temp = realloc(*(node->children), sizeof(abstractNode*) * (node->numChildren));
+    if (temp == NULL) {
+        // figure out how to error
+    } else {
+        *(node->children) = temp;
+        (node->children)[index] = child;
+    }
+}
+
 abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
     abstractNode *node = buildNode(BODY, "");
 
@@ -155,8 +170,6 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
         //handle error here
         return NULL;
     }
-
-    int currChild = 0;
 
     while (*currToken < numTokens) {
         // determine what kind of NodeType we're making?
@@ -181,9 +194,7 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
                 } else if (tokens[temp].type == IDEN) {
                     printf("This is an ASSIGNVAR!\n");
                     abstractNode *child = buildAssignVar(tokens, numTokens, currToken);
-                    printf("%d, %s, %d, %s, %d, %s\n", child->type, child->content, (child->children[0])->type, (child->children[0])->content, (child->children[1])->type, (child->children[1])->content);
-                    node->children[0] = child;
-                    currChild++;
+                    addChild(node, child);
                 } else {
                     printf("ERROR - line %d: expected assignment or another # line after line %d\n", currLine, currLine);
                     return NULL;
@@ -197,9 +208,13 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
         } else {
             // might be IF, IFELSE, FUNCCALL
             printf("blah\n");
-            return NULL;
+            break;
         }
     }
+
+    // printf("%d, %d, %s, %d, %s, %d, %s\n", node->type, (node->children[0])->type, (node->children[0])->content, (node->children[0])->children[0]->type, (node->children[0])->children[0]->content, (node->children[0])->children[1]->type, (node->children[0])->children[1]->content);
+    // printf("%d, %d, %s, %d, %s, %d, %s\n", node->type, (node->children[1])->type, (node->children[1])->content, (node->children[1])->children[0]->type, (node->children[1])->children[0]->content, (node->children[1])->children[1]->type, (node->children[1])->children[1]->content);
+
 
     for (int i = 0; i < numTokens; i++) {
         printf("[Line: %d, Type: %d, Content: %s]\n", tokens[i].line, tokens[i].type, tokens[i].content);
