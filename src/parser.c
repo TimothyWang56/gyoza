@@ -58,8 +58,9 @@ abstractNode *buildNode(nodeType type, char *content) {
     }
 
     node->numChildren = numChildren;
-    node->children = malloc(sizeof(abstractNode*));
-    *(node->children) = malloc(sizeof(abstractNode*) * numChildren);
+    // TODO: double check that this is malloc'ing the correct amount
+    node->children = malloc(sizeof(abstractNode*) * numChildren);
+    *(node->children) = malloc(sizeof(abstractNode) * numChildren);
     return node;
 }
 
@@ -154,7 +155,7 @@ abstractNode *buildAssignVar(token *tokens, int numTokens, int *currToken) {
 void addChild(abstractNode *node, abstractNode *child) {
     int index = node->numChildren;
     (node->numChildren)++;
-    abstractNode *temp = realloc(*(node->children), sizeof(abstractNode*) * (node->numChildren));
+    abstractNode *temp = realloc(*(node->children), sizeof(abstractNode) * (node->numChildren));
     if (temp == NULL) {
         // figure out how to error
     } else {
@@ -212,13 +213,16 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
         }
     }
 
+    // printf("%d, %d, %s, %d\n", node->type, (node->children[0])->type, (node->children[0])->content, (node->children[0])->children[0]->type);
+
+
     // printf("%d, %d, %s, %d, %s, %d, %s\n", node->type, (node->children[0])->type, (node->children[0])->content, (node->children[0])->children[0]->type, (node->children[0])->children[0]->content, (node->children[0])->children[1]->type, (node->children[0])->children[1]->content);
     // printf("%d, %d, %s, %d, %s, %d, %s\n", node->type, (node->children[1])->type, (node->children[1])->content, (node->children[1])->children[0]->type, (node->children[1])->children[0]->content, (node->children[1])->children[1]->type, (node->children[1])->children[1]->content);
 
 
-    for (int i = 0; i < numTokens; i++) {
-        printf("[Line: %d, Type: %d, Content: %s]\n", tokens[i].line, tokens[i].type, tokens[i].content);
-    }
+    // for (int i = 0; i < numTokens; i++) {
+    //     printf("[Line: %d, Type: %d, Content: %s]\n", tokens[i].line, tokens[i].type, tokens[i].content);
+    // }
 
     return node;
 }
