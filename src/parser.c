@@ -6,6 +6,7 @@
 
 // headers for functions to fix compile errors (implicit declarations)
 abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken);
+abstractNode *buildBody(token *tokens, int numTokens, int *currToken);
 
 // Outline for AST Structure
 
@@ -23,7 +24,7 @@ abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken);
 // *TODO*
 // IFELSE will have a CONDITION in children[0], BODY in children[1], and BODY in children[2]. nothing in content
 
-// *TODO*
+// *IN PROGRESS*
 // CONDITION will 1 child (children[0]) thats a VAR (true or false, which is in the global env, or maybe a var that is equal to true or false)
 //      or BINARY (+, -, /, *, >, <, >=, <=, ==, !=, &&, ||) or FUNCCALL that returns a boolean. nothing in content
 
@@ -194,8 +195,7 @@ abstractNode *buildVar(token *tokens, int numTokens, int *currToken) {
     }
 }
 
-// determines if function argument is a FUNCCALL or not
-//      FUNCCALL would be IDEN(...), or IDEN(...))
+// determines token after a function call is closed.
 token *tokenAfterFuncCall(token *tokens, int numTokens, int currToken) {
     if (currToken < numTokens) {
         if (tokens[currToken].type == IDEN) {
@@ -233,7 +233,7 @@ abstractNode *buildCondition(token *tokens, int numTokens, int *currToken) {
     //TODO: maybe check for already defined keywords like true, false, print, etc?
     if (*currToken >= numTokens) {
         // TODO: figure out a good way to handle this error;
-        printf("ERROR: currToken >= numTokens in buildVar\n");
+        printf("ERROR: currToken >= numTokens in buildCondition\n");
         return NULL;
     }
 
@@ -262,10 +262,53 @@ abstractNode *buildCondition(token *tokens, int numTokens, int *currToken) {
     }
 }
 
+abstractNode *buildIfOrIfElse(token *tokens, int numTokens, int *currToken) {
+    //TODO: maybe check for already defined keywords like true, false, print, etc?
+    if (*currToken >= numTokens) {
+        // TODO: figure out a good way to handle this error;
+        printf("ERROR: currToken >= numTokens in buildIfOrElse\n");
+        return NULL;
+    }
+
+    abstractNode *node;
+    abstractNode *condition = buildCondition(tokens, numTokens, currToken);
+
+    if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "?") &&
+        tokens[(*currToken) + 1].type == OP && !strcmp(tokens[(*currToken) + 1].content, "{")) {
+        *currToken = (*currToken) + 2;
+        abstractNode *bodyChild = buildBody(tokens, numTokens, currToken);
+        if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "}")) {
+            (*currToken)++;
+            // this is the IFELSE case
+            if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "/")) {
+                (*currToken)++;
+                node = buildNode(IFELSE, "");
+                abstractNode *elseChild = buildIfOrIfElse(tokens, numTokens, currToken);
+                node->children[0] = condition;
+                node->children[1] = bodyChild;
+                node->children[2] = elseChild;
+                return node;
+            // this is the IF case
+            } else {
+                node = buildNode(IF, "");
+                node->children[0] = condition;
+                node->children[1] = bodyChild;
+                return node;
+            }
+        } else {
+            printf("ERROR: expected closing bracket }\n");
+            return NULL;
+        }
+    } else {
+        printf("ERROR: expected a ? and { after condition\n");
+        return NULL;
+    }
+}
+
 abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken) {
     if (*currToken >= numTokens) {
         // TODO: figure out a good way to handle this error;
-        printf("ERROR: currToken >= numTokens in buildLit\n");
+        printf("ERROR: currToken >= numTokens in buildFuncCall\n");
         return NULL;
     }
 
@@ -352,7 +395,7 @@ abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken) {
 abstractNode *buildAssignVar(token *tokens, int numTokens, int *currToken) {
     if (*currToken >= numTokens) {
         // TODO: figure out a good way to handle this error;
-        printf("ERROR: currToken >= numTokens in buildLit\n");
+        printf("ERROR: currToken >= numTokens in buildAssignVar\n");
         return NULL;
     }
 
@@ -415,7 +458,7 @@ abstractNode *buildAssignVar(token *tokens, int numTokens, int *currToken) {
                     return NULL;
                 }
             } else {
-                printf("bad!!\n");
+                printf("type not supported!!\n");
                 return NULL;
             }
         } else {
@@ -438,7 +481,10 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
     while (*currToken < numTokens) {
         // determine what kind of NodeType we're making?
         // either IF, IFELSE, ASSIGNVAR, FUNCDEF, FUNCCALL
-        if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "#")) {
+        if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "}")) {
+            printf("closing bracket found\n");
+            break;
+        } else if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "#")) {
             // either a ASSIGNVAR or FUNCDEF
             // if next line starts with a # OP, then it's a FUNCDEF. if its an IDEN it's an ASSIGNVAR. otherwise some error.
             int currLine = tokens[*currToken].line;
@@ -452,11 +498,9 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
             }
             if (tokens[temp].line == (currLine) + 1) {
                 if (tokens[temp].type == OP && !strcmp(tokens[temp].content, "#")) {
-                    // this is a FUNCDEF
-                    printf("This is a FUNCDEF!\n");
+                    // TODO: handle FUNDEF
                     return NULL;
                 } else if (tokens[temp].type == IDEN) {
-                    printf("This is an ASSIGNVAR!\n");
                     abstractNode *child = buildAssignVar(tokens, numTokens, currToken);
                     addChild(node, child);
                 } else {
@@ -481,29 +525,34 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
             } else {
                 return NULL;
             }
+        // currently this IF/IFELSE check doesn't take into account BINARYS
+        } else if ((tokens[*currToken].type == IDEN &&
+            tokens[(*currToken) + 1].type == OP &&
+            !strcmp(tokens[(*currToken) + 1].content, "?")) ||
+            !strcmp(tokenAfterFuncCall(tokens, numTokens, *currToken)->content, "?")) {
+            abstractNode *child = buildIfOrIfElse(tokens, numTokens, currToken);
+            addChild(node, child);
         } else {
-            // might be IF, IFELSE
-            printf("blah\n");
+            printf("case not handled yet\n");
             break;
         }
     }
 
-    // printf("%d, %d, %s, %d, %s, %d, %s\n", node->type, (node->children[0])->type, (node->children[0])->content, (node->children[0])->children[0]->type, (node->children[0])->children[0]->content, (node->children[0])->children[1]->type, (node->children[0])->children[1]->content);
-    // printf("%d, %d, %s, %d, %s, %d, %s\n", node->type, (node->children[1])->type, (node->children[1])->content, (node->children[1])->children[0]->type, (node->children[1])->children[0]->content, (node->children[1])->children[1]->type, (node->children[1])->children[1]->content);
-
-
-    // for (int i = 0; i < numTokens; i++) {
-    //     printf("[Line: %d, Type: %d, Content: %s]\n", tokens[i].line, tokens[i].type, tokens[i].content);
-    // }
-
-    printf("Node: %d\n", node->children[0]->type);
     return node;
 }
 
 int build(token *tokens, int numTokens, abstractNode **root) {
     int currToken = 0;
     *root = buildBody(tokens, numTokens, &currToken);
-    printAST(*root, "", "     ");
+
+    // no leftover tokens
+    if (currToken == numTokens) {
+        printAST(*root, "", "     ");
+    } else {
+        printf("ERROR: leftover tokens?\n");
+        return 0;
+    }
+    
     // TODO: ERROR check *root isn't null
     return 1;
 }
