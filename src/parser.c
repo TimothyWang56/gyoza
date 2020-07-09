@@ -6,20 +6,39 @@
 
 // Outline for AST Structure
 
-// LITERAL will have the literal as it's content and no children. int, float, str are all literals.
+// *DONE*
+// LITERAL  will have the literal as it's content and no children. int, float, str are all literals.
 //      this will be split into NUM_LITERAL and STRING_LITERAL
+
+// *TODO*
 // BINARY will have one of the binary operators (+, -, /, *, >, <, >=, <=, ==, !=, &&, ||) in content, and children[0] and children[1] will be 
 //      the arguments for the binary operator. They could be a VAR, LITERAL, FUNCCALL, or BINARY
+
+// *TODO*
 // IF will have a CONDITION in children[0] and BODY in children[1]. nothing in content
+
+// *TODO*
 // IFELSE will have a CONDITION in children[0], BODY in children[1], and BODY in children[2]. nothing in content
+
+// *TODO*
 // CONDITION will 1 child (children[0]) thats a VAR (true or false, which is in the global env, or maybe a var that is equal to true or false)
 //      or BINARY (+, -, /, *, >, <, >=, <=, ==, !=, &&, ||) or FUNCCALL that returns a boolean. nothing in content
+
+// *IN PROGRESS*
 // BODY will have array of children, where each child is some sort of statment. Im guessing content won't be used in this case
 //      children can include IF, IFELSE, ASSIGNVAR, FUNCDEF, FUNCCALL
+
+// *TODO*
 // FUNCDEF will have = as content, VAR as children[0], and BODY as children[1]
+
+// *IN PROGRESS*
 // FUNCCALL will have function name as content, and each child will be an argument (in order). These arguments can be
 //      LITERAL, BINARY, FUNCCALL, VAR
-// ASSIGNVAR will have type (int, float, boolean, string, etc.) as content. VAR is children[0] and children[1] can be FUNCCALL, LITERAL, BINARY
+
+// *IN PROGRESS*
+// ASSIGNVAR will have type (int, float, boolean, string, etc.) as content. VAR is children[0] and children[1] can be FUNCCALL, LITERAL, BINARY, VAR
+
+// *DONE*
 // VAR will have name as content, and no children
 
 abstractNode *buildNode(nodeType type, char *content) {
@@ -60,7 +79,6 @@ abstractNode *buildNode(nodeType type, char *content) {
     node->numChildren = numChildren;
     // TODO: double check that this is malloc'ing the correct amount
     node->children = malloc(sizeof(abstractNode*) * numChildren);
-    *(node->children) = malloc(sizeof(abstractNode) * numChildren);
     return node;
 }
 
@@ -122,11 +140,11 @@ void printAST(abstractNode *node, char* currLeadSpace, char* leadSpaceIncrement)
 void addChild(abstractNode *node, abstractNode *child) {
     int index = node->numChildren;
     (node->numChildren)++;
-    abstractNode *temp = realloc(*(node->children), sizeof(abstractNode) * (node->numChildren));
+    abstractNode **temp = realloc(node->children, sizeof(abstractNode*) * (node->numChildren));
     if (temp == NULL) {
         // figure out how to error
     } else {
-        *(node->children) = temp;
+        node->children = temp;
         (node->children)[index] = child;
     }
 }
@@ -175,7 +193,7 @@ abstractNode *buildVar(token *tokens, int numTokens, int *currToken) {
 
 // determines if function argument is a FUNCCALL or not
 //      FUNCCALL would be IDEN(...), or IDEN(...))
-int funcCallArg(token *tokens, int numTokens, int currToken) {
+token *tokenAfterFuncCall(token *tokens, int numTokens, int currToken) {
     if (currToken < numTokens) {
         if (tokens[currToken].type == IDEN) {
             currToken++;
@@ -200,16 +218,12 @@ int funcCallArg(token *tokens, int numTokens, int currToken) {
                 }
 
                 if (openParens == closeParens) {
-                    if (tokens[currToken].type == OP &&
-                        (!strcmp(tokens[currToken].content, ")") ||
-                        !strcmp(tokens[currToken].content, ",") )) {
-                            return 1;
-                    }
+                    return &tokens[currToken];
                 }
             }
         }
     }
-    return 0;
+    return NULL;
 }
 
 abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken) {
@@ -245,12 +259,24 @@ abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken) {
                     !strcmp(tokens[(*currToken) + 1].content, ")"))) {
                     abstractNode *child = buildLit(tokens, numTokens, currToken);
                     addChild(node, child);
-                // FUNCCALL case
-                } else if (funcCallArg(tokens, numTokens, *currToken)) {
-
-                // BINARY   
                 } else {
+                    // FUNCCALL or BINARY case
+                    if (tokens[*currToken].type == IDEN &&
+                        tokens[(*currToken) + 1].type == OP &&
+                        !strcmp(tokens[(*currToken) + 1].content, "(")) {
+                        token *t = tokenAfterFuncCall(tokens, numTokens, *currToken);
+                        // FUNCCALL case
+                        if (!strcmp((*t).content, ")") || !strcmp((*t).content, ",")) {
+                            // abstractNode *child = buildFuncCall(tokens, numTokens, currToken);
+                            // addChild(node, child);
+                        // must be BINARY case or ERROR
+                        } else {
 
+                        }
+                    // at this point, must be BINARY case or ERROR
+                    } else {
+
+                    }
                 }
 
                 if (tokens[(*currToken)].type == OP) {
@@ -296,6 +322,8 @@ abstractNode *buildAssignVar(token *tokens, int numTokens, int *currToken) {
 
     abstractNode *node;
     if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "#")) {
+        // have better checking to make sure this is all the same line
+        
         (*currToken)++;
         if (tokens[*currToken].type == IDEN) {
             char *content = tokens[*currToken].content;
@@ -305,15 +333,46 @@ abstractNode *buildAssignVar(token *tokens, int numTokens, int *currToken) {
                 !strcmp(content, "boolean")) {
                 node = buildNode(ASSIGNVAR, content);
                 (*currToken)++;
+                int currLine = tokens[*currToken].line;
                 abstractNode *varChild = buildVar(tokens, numTokens, currToken);
                 node->children[0] = varChild;
                 if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "=")) {
                     (*currToken)++;
-                    // TODO: handle function calls and binaries in addition to literals
-                    // just handling literals for now
-                    abstractNode *litChild = buildLit(tokens, numTokens, currToken);
-                    node->children[1] = litChild;
-                    return node;
+                    // TODO: handle function calls, vars, binaries in addition to literals
+                    // LITERAL case
+                    if ((tokens[*currToken].type == INT ||
+                        tokens[*currToken].type == FLT ||
+                        tokens[*currToken].type == STR) &&
+                        (tokens[(*currToken) + 1].line != currLine)) {
+                        abstractNode *litChild = buildLit(tokens, numTokens, currToken);
+                        node->children[1] = litChild;
+                        return node;
+                    // VAR case
+                    } else if (tokens[*currToken].type == IDEN &&
+                        (tokens[(*currToken) + 1].line != currLine)) {
+                        abstractNode *varChild = buildVar(tokens, numTokens, currToken);
+                        node->children[1] = varChild;
+                        return node;
+                    // either FUNCCALL or BINARY case
+                    } else {
+                        if (tokens[*currToken].type == IDEN &&
+                            tokens[(*currToken) + 1].type == OP &&
+                            !strcmp(tokens[(*currToken) + 1].content, "(")) {
+                            token *t = tokenAfterFuncCall(tokens, numTokens, *currToken);
+                            // FUNCCALL case
+                            if ((*t).line != currLine) {
+                                // abstractNode *child = buildFuncCall(tokens, numTokens, currToken);
+                                // node->children[1] = child;
+                            // must be BINARY case or ERROR
+                            } else {
+
+                            }
+                        // at this point, must be BINARY case or ERROR
+                        } else {
+
+                        }
+                    }
+                    
                 } else {
                     printf("ERROR - line %d: expected '=' after identifier\n", tokens[*currToken].line);
                     return NULL;
@@ -373,8 +432,20 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
             }
 
             
+        } else if (tokens[*currToken].type == IDEN &&
+            tokens[(*currToken) + 1].type == OP &&
+            !strcmp(tokens[(*currToken) + 1].content, "(")) {
+            token *t = tokenAfterFuncCall(tokens, numTokens, *currToken);
+            // FUNCCALL case
+            if ((*t).line != tokens[*currToken].line) {
+                abstractNode *child = buildFuncCall(tokens, numTokens, currToken);
+                addChild(node, child);
+            // must be BINARY case or ERROR
+            } else {
+                return NULL;
+            }
         } else {
-            // might be IF, IFELSE, FUNCCALL
+            // might be IF, IFELSE
             printf("blah\n");
             break;
         }
@@ -388,6 +459,7 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
     //     printf("[Line: %d, Type: %d, Content: %s]\n", tokens[i].line, tokens[i].type, tokens[i].content);
     // }
 
+    printf("Node: %d\n", node->children[0]->type);
     return node;
 }
 
