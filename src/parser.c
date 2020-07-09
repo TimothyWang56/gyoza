@@ -4,6 +4,9 @@
 #include "nodes.h"
 #include "tokens.h"
 
+// headers for functions to fix compile errors (implicit declarations)
+abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken);
+
 // Outline for AST Structure
 
 // *DONE*
@@ -226,6 +229,39 @@ token *tokenAfterFuncCall(token *tokens, int numTokens, int currToken) {
     return NULL;
 }
 
+abstractNode *buildCondition(token *tokens, int numTokens, int *currToken) {
+    //TODO: maybe check for already defined keywords like true, false, print, etc?
+    if (*currToken >= numTokens) {
+        // TODO: figure out a good way to handle this error;
+        printf("ERROR: currToken >= numTokens in buildVar\n");
+        return NULL;
+    }
+
+    abstractNode *node = buildNode(CONDITION, "");
+
+    // TODO: maybe check for surrounding ( ) and ignore them (currently we don't support that)
+    if (tokens[*currToken].type == IDEN) {
+        if (tokens[(*currToken) + 1].type == OP && !strcmp(tokens[(*currToken) + 1].content, "?")) {
+            abstractNode *varChild = buildVar(tokens, numTokens, currToken);
+            node->children[0] = varChild;
+            return node;
+        } else {
+            token *t = tokenAfterFuncCall(tokens, numTokens, *currToken);
+            if ((*t).type == OP && !strcmp((*t).content, "?")) {
+                abstractNode *funcChild = buildFuncCall(tokens, numTokens, currToken);
+                node->children[0] = funcChild;
+                return node;
+            } else {
+                // either BINARY or error
+                return NULL;
+            }
+        }
+    } else {
+        // either BINARY or error
+        return NULL;
+    }
+}
+
 abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken) {
     if (*currToken >= numTokens) {
         // TODO: figure out a good way to handle this error;
@@ -267,8 +303,8 @@ abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken) {
                         token *t = tokenAfterFuncCall(tokens, numTokens, *currToken);
                         // FUNCCALL case
                         if (!strcmp((*t).content, ")") || !strcmp((*t).content, ",")) {
-                            // abstractNode *child = buildFuncCall(tokens, numTokens, currToken);
-                            // addChild(node, child);
+                            abstractNode *child = buildFuncCall(tokens, numTokens, currToken);
+                            addChild(node, child);
                         // must be BINARY case or ERROR
                         } else {
 
@@ -361,15 +397,16 @@ abstractNode *buildAssignVar(token *tokens, int numTokens, int *currToken) {
                             token *t = tokenAfterFuncCall(tokens, numTokens, *currToken);
                             // FUNCCALL case
                             if ((*t).line != currLine) {
-                                // abstractNode *child = buildFuncCall(tokens, numTokens, currToken);
-                                // node->children[1] = child;
+                                abstractNode *child = buildFuncCall(tokens, numTokens, currToken);
+                                node->children[1] = child;
+                                return node;
                             // must be BINARY case or ERROR
                             } else {
-
+                                return NULL;
                             }
                         // at this point, must be BINARY case or ERROR
                         } else {
-
+                            return NULL;
                         }
                     }
                     
