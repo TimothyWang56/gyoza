@@ -19,7 +19,7 @@ This checks off criterion 1, which is making the language strongly typed. I hope
 ---
 datatypes (keeping it basic for now)
 ```
-int, float, string, bool, array (probably just int[] or float[], same syntax as Java/C)
+int, float, string, bool, array (will not be supported just yet)
 ```
 
 defining a variable
@@ -118,7 +118,7 @@ number > 5 ? {
 }
 ```
 ---
-loops
+loops (will not be supported yet)
 
 for a range of numbers
 ```
