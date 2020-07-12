@@ -18,10 +18,10 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken);
 // BINARY will have one of the binary operators (+, -, /, *, >, <, >=, <=, ==, !=, &&, ||) in content, and children[0] and children[1] will be 
 //      the arguments for the binary operator. They could be a VAR, LITERAL, FUNCCALL, or BINARY
 
-// *TODO*
+// *IN PROGRESS*
 // IF will have a CONDITION in children[0] and BODY in children[1]. nothing in content
 
-// *TODO*
+// *IN PROGRESS*
 // IFELSE will have a CONDITION in children[0], BODY in children[1], and BODY in children[2]. nothing in content
 
 // *IN PROGRESS*
@@ -33,7 +33,13 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken);
 //      children can include IF, IFELSE, ASSIGNVAR, FUNCDEF, FUNCCALL
 
 // *TODO*
-// FUNCDEF will have = as content, VAR as children[0], and BODY as children[1]
+// FUNCDEF will have func name as content, FUNCARG as children[0], children[1],..., and BODY as children[1]
+
+// *TODO*
+// FUNCARG will have type as content and VAR as children[0]
+
+// *TODO*
+// FUNCRETURN will have type as content, and no children
 
 // *IN PROGRESS*
 // FUNCCALL will have function name as content, and each child will be an argument (in order). These arguments can be
@@ -52,18 +58,20 @@ abstractNode *buildNode(nodeType type, char *content) {
     node->content = content;
     int numChildren;
     switch (type) {
+        case FUNCRETURN :
         case INT_LITERAL :
         case FLOAT_LITERAL :
         case STRING_LITERAL :
         case VAR :
             numChildren = 0;
             break;
+        case FUNCARG:
         case CONDITION :
             numChildren = 1;
             break;
         case BINARY :
         case IF :
-        case FUNCDEF :
+        
         case ASSIGNVAR :
             numChildren = 2;
             break;
@@ -72,7 +80,7 @@ abstractNode *buildNode(nodeType type, char *content) {
             break;
         case BODY :
         case FUNCCALL :
-        // 10 is abitrary here, since BODY and FUNCCALL can have any number of children. Maybe figure out a better way to handle this?
+        case FUNCDEF :
             numChildren = 0;
             break;
         default:
@@ -124,6 +132,12 @@ void printAST(abstractNode *node, char* currLeadSpace, char* leadSpaceIncrement)
             break;
         case VAR:
             type = "VAR";
+            break;
+        case FUNCARG:
+            type = "FUNCARG";
+            break;
+        case FUNCRETURN:
+            type = "FUNCRETURN";
             break;
     }
     
@@ -178,7 +192,6 @@ abstractNode *buildLit(token *tokens, int numTokens, int *currToken) {
 
 
 abstractNode *buildVar(token *tokens, int numTokens, int *currToken) {
-    //TODO: maybe check for already defined keywords like true, false, print, etc?
     if (*currToken >= numTokens) {
         // TODO: figure out a good way to handle this error;
         printf("ERROR: currToken >= numTokens in buildVar\n");
@@ -191,6 +204,59 @@ abstractNode *buildVar(token *tokens, int numTokens, int *currToken) {
         return node;
     } else {
         printf("ERROR - line %d: expected an identifier at the beginning of this line\n", tokens[*currToken].line);
+        return NULL;
+    }
+}
+
+abstractNode *buildFuncReturn(token *tokens, int numTokens, int *currToken) {
+    if (*currToken >= numTokens) {
+        // TODO: figure out a good way to handle this error;
+        printf("ERROR: currToken >= numTokens in buildFuncReturn\n");
+        return NULL;
+    }
+    if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "#")) {
+        (*currToken)++;
+        if (tokens[*currToken].type == IDEN) {
+            abstractNode *node = buildNode(FUNCRETURN, tokens[*currToken].content);
+            (*currToken)++;
+            return node;
+        } else {
+            printf("ERROR - line %d: expected an identifier at the beginning of this line\n", tokens[*currToken].line);
+            return NULL;
+        }
+    } else {
+        printf("ERROR: expected # for func return\n");
+        return NULL;
+    }
+}
+
+abstractNode *buildFuncArg(token *tokens, int numTokens, int *currToken) {
+    if (*currToken >= numTokens) {
+        // TODO: figure out a good way to handle this error;
+        printf("ERROR: currToken >= numTokens in buildFuncArg\n");
+        return NULL;
+    }
+
+    if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "#")) {
+        (*currToken)++;
+        abstractNode *node;
+        if (tokens[*currToken].type == IDEN) {
+            node = buildNode(FUNCARG, tokens[*currToken].content);
+            (*currToken)++;
+            if (tokens [*currToken].type == IDEN) {
+                abstractNode *child = buildVar(tokens, numTokens, currToken);
+                node->children[0] = child;
+                return node;
+            } else {
+                printf("ERROR: expected 2nd iden after #\n");
+                return NULL;
+            }
+        } else {
+            printf("ERROR: expected iden after #\n");
+            return NULL;
+        }
+    } else {
+        printf("ERROR: func arg starts with #\n");
         return NULL;
     }
 }
@@ -470,7 +536,88 @@ abstractNode *buildAssignVar(token *tokens, int numTokens, int *currToken) {
     }
 }
 
+abstractNode *buildFuncDef(token *tokens, int numTokens, int *currToken) {
+    if (*currToken >= numTokens) {
+        // TODO: figure out a good way to handle this error;
+        printf("ERROR: currToken >= numTokens in buildAssignVar\n");
+        return NULL;
+    }
+
+    abstractNode *node = buildNode(FUNCDEF, "");
+
+    // this is the case of when there are no input arguments
+    if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "#") &&
+        tokens[(*currToken) + 1].type == OP && !strcmp(tokens[(*currToken) + 1].content, "#")) {
+        *currToken = *currToken + 1;
+        if (tokens[(*currToken) + 1].type == IDEN) {
+            abstractNode *funcReturn = buildFuncReturn(tokens, numTokens, currToken);
+            addChild(node, funcReturn);
+        } else {
+            printf("ERROR: return type of function not recognized\n");
+            return NULL;
+        }
+    // this is the case when there is at least 1 input
+    } else {
+        int foundOutput = 0;
+        while (!foundOutput) {
+            if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "#") &&
+                tokens[(*currToken) + 1].type == IDEN) {
+                int currentLine = tokens[*currToken].line;
+                if (tokens[(*currToken) + 2].line == currentLine &&
+                    tokens[(*currToken) + 2].type == IDEN) {
+                    abstractNode *funcArgChild = buildFuncArg(tokens, numTokens, currToken);
+                    addChild(node, funcArgChild);
+                // this is the output case
+                } else {
+                    abstractNode *funcReturn = buildFuncReturn(tokens, numTokens, currToken);
+                    addChild(node, funcReturn);
+                    foundOutput = 1;
+                }
+            } else {
+                printf("ERROR: malformed input/output for func definition\n");
+                return NULL;
+            }
+        }
+    }
+
+    if (tokens[*currToken].type == IDEN) {
+        node->content = tokens[*currToken].content;
+        (*currToken)++;
+        if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "=")) {
+            (*currToken)++;
+            if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "{")) {
+                (*currToken)++;
+                abstractNode *bodyChild = buildBody(tokens, numTokens, currToken);
+                addChild(node, bodyChild);
+                if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "}")) {
+                    (*currToken)++;
+                    return node;
+                } else {
+                    printf("ERROR: expected } after function body\n");
+                    return NULL;
+                }
+            } else {
+                printf("ERROR: expected { after function name and = in func definition\n");
+                return NULL;
+            }
+        } else {
+            printf("ERROR: expected = after function name in func definition\n");
+            return NULL;
+        }
+    } else {
+        printf("ERROR: should have function name after type definitions\n");
+        return NULL;
+    }
+
+}
+
 abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
+    if (*currToken >= numTokens) {
+        // TODO: figure out a good way to handle this error;
+        printf("ERROR: currToken >= numTokens in buildAssignVar\n");
+        return NULL;
+    }
+
     abstractNode *node = buildNode(BODY, "");
 
     if (node == NULL) {
@@ -498,8 +645,8 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
             }
             if (tokens[temp].line == (currLine) + 1) {
                 if (tokens[temp].type == OP && !strcmp(tokens[temp].content, "#")) {
-                    // TODO: handle FUNDEF
-                    return NULL;
+                    abstractNode *child = buildFuncDef(tokens, numTokens, currToken);
+                    addChild(node, child);
                 } else if (tokens[temp].type == IDEN) {
                     abstractNode *child = buildAssignVar(tokens, numTokens, currToken);
                     addChild(node, child);
