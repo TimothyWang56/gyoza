@@ -1,7 +1,7 @@
 # gyoza-programming-language
 
 ---
-I thought it'd be fun to try and write a simple programming language from scratch, so that's what ~Gyoza~ is! I'm currently trying to figure out the rules for my language. Here's a list of criteria I'd like Gyoza to stick to:
+I thought it'd be fun to try and write a simple programming language from scratch, so that's what \~Gyoza\~ is! I'm currently trying to figure out the rules for my language. Here's a list of criteria I'd like Gyoza to stick to:
 
 1. Statically-typed. While it's nice to be able to write a function without declaring the types (which makes for faster development), I find that it makes it much harder to read. In addition, allowing a variable be *any* type can lead to some pretty bad bugs.
 2. Not too verbose. I think it's gonna be hard to achieve this with (1) above, but I would like to reduce verbosity as much as possible.
@@ -19,7 +19,7 @@ This checks off criterion 1, which is making the language strongly typed. I hope
 ---
 datatypes (keeping it basic for now)
 ```
-int, float, string, bool, array (probably just int[] or float[], same syntax as Java/C)
+int, float, string, bool, array (will not be supported just yet)
 ```
 
 defining a variable
@@ -118,7 +118,7 @@ number > 5 ? {
 }
 ```
 ---
-loops
+loops (will not be supported yet)
 
 for a range of numbers
 ```
