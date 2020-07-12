@@ -32,13 +32,13 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken);
 // BODY will have array of children, where each child is some sort of statment. Im guessing content won't be used in this case
 //      children can include IF, IFELSE, ASSIGNVAR, FUNCDEF, FUNCCALL
 
-// *TODO*
+// *IN PROGRESS*
 // FUNCDEF will have func name as content, FUNCARG as children[0], children[1],..., and BODY as children[1]
 
-// *TODO*
+// *DONE*
 // FUNCARG will have type as content and VAR as children[0]
 
-// *TODO*
+// *DONE*
 // FUNCRETURN will have type as content, and no children
 
 // *IN PROGRESS*
