@@ -3,6 +3,7 @@
 #include <string.h>
 #include "nodes.h"
 #include "tokens.h"
+#include "stack.h"
 
 // headers for functions to fix compile errors (implicit declarations)
 abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken);
@@ -14,7 +15,7 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken);
 // LITERAL  will have the literal as it's content and no children. int, float, str are all literals.
 //      this will be split into NUM_LITERAL and STRING_LITERAL
 
-// *TODO*
+// *IN PROGRESS*
 // BINARY will have one of the binary operators (+, -, /, *, >, <, >=, <=, ==, !=, &&, ||) in content, and children[0] and children[1] will be 
 //      the arguments for the binary operator. They could be a VAR, LITERAL, FUNCCALL, or BINARY
 
@@ -48,8 +49,14 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken);
 // *IN PROGRESS*
 // ASSIGNVAR will have type (int, float, boolean, string, etc.) as content. VAR is children[0] and children[1] can be FUNCCALL, LITERAL, BINARY, VAR
 
+// *TODO*
+// RESASSIGNVAR will have VAR as children[0] and children[1] can be FUNCCALL, LITERAL, BINARY, VAR
+
 // *DONE*
 // VAR will have name as content, and no children
+
+// *TODO*
+// PAREN, no children and content is ( or )
 
 abstractNode *buildNode(nodeType type, char *content) {
     abstractNode *node = malloc(sizeof(abstractNode));
@@ -58,6 +65,7 @@ abstractNode *buildNode(nodeType type, char *content) {
     node->content = content;
     int numChildren;
     switch (type) {
+        case PAREN :
         case FUNCRETURN :
         case INT_LITERAL :
         case FLOAT_LITERAL :
@@ -138,6 +146,9 @@ void printAST(abstractNode *node, char* currLeadSpace, char* leadSpaceIncrement)
             break;
         case FUNCRETURN:
             type = "FUNCRETURN";
+            break;
+        case PAREN: 
+            type = "PAREN";
             break;
     }
     
@@ -369,6 +380,183 @@ abstractNode *buildIfOrIfElse(token *tokens, int numTokens, int *currToken) {
         printf("ERROR: expected a ? and { after condition\n");
         return NULL;
     }
+}
+
+static const char *rightAssociativeOperators[] = {
+    "=",
+    "!",
+};
+
+int isRightAssociative(char *operator) {
+    for (int i = 0; i < (int) sizeof(rightAssociativeOperators) / (int) sizeof(rightAssociativeOperators[0]); i++) {
+        if (!strcmp(rightAssociativeOperators[i], operator)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// arrays of operators from highest precedence to lowest precedence
+// static const char *operators1[] = {
+//     "(",
+//     ")",
+// };
+
+static const char *operators2[] = {
+    "!",
+    "^",
+};
+
+static const char *operators3[] = {
+    "*",
+    "/",
+    "%",
+};
+
+static const char *operators4[] = {
+    "+",
+    "-",
+};
+
+static const char *operators5[] = {
+    "<",
+    "<=",
+    ">",
+    ">=",
+};
+
+static const char *operators6[] = {
+    "==",
+    "!=",
+};
+
+static const char *operators7[] = {
+    "&&",
+};
+
+static const char *operators8[] = {
+    "||",
+};
+
+static const char *operators9[] = {
+    "=",
+};
+
+static const int arraySizes[] = {
+    // (int) sizeof(operators1) / (int) sizeof(operators1[0]),
+    (int) sizeof(operators2) / (int) sizeof(operators2[0]),
+    (int) sizeof(operators3) / (int) sizeof(operators3[0]),
+    (int) sizeof(operators4) / sizeof(operators4[0]),
+    (int) sizeof(operators5) / sizeof(operators5[0]),
+    (int) sizeof(operators6) / (int) sizeof(operators6[0]),
+    (int) sizeof(operators7) / (int) sizeof(operators7[0]),
+    (int) sizeof(operators8) / (int) sizeof(operators8[0]),
+    (int) sizeof(operators9) / (int) sizeof(operators9[0]),
+};
+
+static const char **orderedOperators[] = {
+    // operators1,
+    operators2,
+    operators3,
+    operators4,
+    operators5,
+    operators6,
+    operators7,
+    operators8,
+    operators9,
+};
+
+int operatorPrecedence(char *operator) {
+    for (int i = 0; i < (int) sizeof(orderedOperators) / (int)sizeof(char*); i++) {
+        for (int j = 0; j < arraySizes[i]; j++) {
+            if (!strcmp(orderedOperators[i][j], operator)) {
+                printf("Operator: %s, Precedence: %d\n", operator, i);
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
+void addNodeToOperandStack(stackNode **operandStack, abstractNode *node) {
+    abstractNode *rightASTNode = pop(operandStack);
+    abstractNode *leftASTNode = pop(operandStack);
+    node->children[0] = leftASTNode;
+    node->children[1] = rightASTNode;
+    push(operandStack, node);
+}
+
+// building binary expressions using the shunting-yard algorithm
+abstractNode *buildBinary(token *tokens, int numTokens, int *currToken) {
+    if (*currToken >= numTokens) {
+        // TODO: figure out a good way to handle this error;
+        printf("ERROR: currToken >= numTokens in buildBinary\n");
+        return NULL;
+    }
+    stackNode *operatorStack = newStack();
+    stackNode *operandStack = newStack();
+    while (*currToken < numTokens) {
+        if (tokens[*currToken].type == OP) {
+            char *currTokenContent = tokens[*currToken].content;
+            if (!strcmp(currTokenContent, "(")) {
+                abstractNode *paren = buildNode(PAREN, "(");
+                push(&operatorStack, paren);
+                (*currToken)++;
+            } else if (!strcmp(currTokenContent, ")")) {
+                (*currToken)++;
+                int leftParenFound = 0;
+                while (!isEmpty(operatorStack)) {
+                    abstractNode *poppedASTNode = pop(&operatorStack);
+                    // TODO: double check this case
+                    if (!strcmp(poppedASTNode->content, "(")) {
+                        leftParenFound = 1;
+                        break;
+                    } else {
+                        addNodeToOperandStack(&operandStack, poppedASTNode);
+                    }
+                }
+                if (!leftParenFound) {
+                    printf("ERROR: unmatched right parentheses\n");
+                    return NULL;
+                }
+            } else {
+                int op1Precedence = operatorPrecedence(currTokenContent);
+                // 0 or higher means its an operator. 0 has the highest precedence
+                if (op1Precedence >= 0) {
+                    abstractNode *peekedOperatorASTNode = peek(operatorStack);
+                    while (!isEmpty(operatorStack) && strcmp(peekedOperatorASTNode->content, "(")) {
+                        int op2Precedence = operatorPrecedence(peekedOperatorASTNode->content);
+                        // TODO: figure out associativity in the following check
+                        if ((!isRightAssociative(currTokenContent) && op1Precedence == op2Precedence) || op1Precedence > op2Precedence) {
+                            pop(&operatorStack);
+                            addNodeToOperandStack(&operandStack, peekedOperatorASTNode);
+                            peekedOperatorASTNode = peek(operatorStack);
+                        } else {
+                            break;
+                        }
+                    }
+                    abstractNode *emptyBinary = buildNode(BINARY, currTokenContent);
+                    push(&operatorStack, emptyBinary);
+                    (*currToken)++;
+                // the operator is not valid or accounted for, so ERROR
+                } else {
+                    printf("ERROR: operator %s not valid\n", currTokenContent);
+                    return NULL;
+                }
+            }
+        // either a func call, var, or literal
+        } else {
+            abstractNode *lit = buildLit(tokens, numTokens, currToken);
+            push(&operandStack, lit);
+        }
+    }
+    while (!isEmpty(operatorStack)) {
+        abstractNode *operand = pop(&operatorStack);
+        addNodeToOperandStack(&operandStack, operand);
+    }
+
+    return pop(&operandStack);
+
 }
 
 abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken) {
@@ -700,6 +888,8 @@ int build(token *tokens, int numTokens, abstractNode **root) {
         return 0;
     }
     
-    // TODO: ERROR check *root isn't null
+    if (root == NULL) {
+        return 0;
+    }
     return 1;
 }

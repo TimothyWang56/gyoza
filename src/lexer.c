@@ -23,6 +23,8 @@ static const char operators[] = {
     ',',
     '<',
     '>',
+    '^',
+    '%',
     // maybe figure out a better way to handle this, since && and || are valid, but & and | are not
     '&',
     '|',

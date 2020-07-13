@@ -37,8 +37,6 @@ int main(int argc, char *argv[]) {
     }
 
     // TODO: free ast
-    // free(root->children);
-    // free(root);
 
     cleanTokens(&tokens, numTokens);
     return 0;
