@@ -27,6 +27,10 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    for (int i = 0; i < numTokens; i++) {
+        printf("Line: %d, Content: %s\n", tokens[i].line, tokens[i].content);
+    }
+
     // make abstract syntax tree using parser
     abstractNode *root;
     returnVal = build(tokens, numTokens, &root);

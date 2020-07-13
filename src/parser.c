@@ -49,9 +49,6 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken);
 // *IN PROGRESS*
 // ASSIGNVAR will have type (int, float, boolean, string, etc.) as content. VAR is children[0] and children[1] can be FUNCCALL, LITERAL, BINARY, VAR
 
-// *TODO*
-// RESASSIGNVAR will have VAR as children[0] and children[1] can be FUNCCALL, LITERAL, BINARY, VAR
-
 // *DONE*
 // VAR will have name as content, and no children
 
@@ -384,7 +381,7 @@ abstractNode *buildIfOrIfElse(token *tokens, int numTokens, int *currToken) {
 
 static const char *rightAssociativeOperators[] = {
     "=",
-    "!",
+    // "!",
 };
 
 int isRightAssociative(char *operator) {
@@ -396,66 +393,60 @@ int isRightAssociative(char *operator) {
     return 0;
 }
 
-// arrays of operators from highest precedence to lowest precedence
-// static const char *operators1[] = {
-//     "(",
-//     ")",
-// };
-
-static const char *operators2[] = {
-    "!",
+static const char *operators1[] = {
+    // "!",
     "^",
 };
 
-static const char *operators3[] = {
+static const char *operators2[] = {
     "*",
     "/",
     "%",
 };
 
-static const char *operators4[] = {
+static const char *operators3[] = {
     "+",
     "-",
 };
 
-static const char *operators5[] = {
+static const char *operators4[] = {
     "<",
     "<=",
     ">",
     ">=",
 };
 
-static const char *operators6[] = {
+static const char *operators5[] = {
     "==",
     "!=",
 };
 
-static const char *operators7[] = {
+static const char *operators6[] = {
     "&&",
 };
 
-static const char *operators8[] = {
+static const char *operators7[] = {
     "||",
 };
 
-static const char *operators9[] = {
+static const char *operators8[] = {
     "=",
 };
 
 static const int arraySizes[] = {
     // (int) sizeof(operators1) / (int) sizeof(operators1[0]),
+    (int) sizeof(operators1) / (int) sizeof(operators1[0]),
     (int) sizeof(operators2) / (int) sizeof(operators2[0]),
     (int) sizeof(operators3) / (int) sizeof(operators3[0]),
-    (int) sizeof(operators4) / sizeof(operators4[0]),
-    (int) sizeof(operators5) / sizeof(operators5[0]),
+    (int) sizeof(operators4) / (int) sizeof(operators4[0]),
+    (int) sizeof(operators5) / (int) sizeof(operators5[0]),
     (int) sizeof(operators6) / (int) sizeof(operators6[0]),
     (int) sizeof(operators7) / (int) sizeof(operators7[0]),
     (int) sizeof(operators8) / (int) sizeof(operators8[0]),
-    (int) sizeof(operators9) / (int) sizeof(operators9[0]),
 };
 
 static const char **orderedOperators[] = {
-    // operators1,
+    operators1,
     operators2,
     operators3,
     operators4,
@@ -463,7 +454,6 @@ static const char **orderedOperators[] = {
     operators6,
     operators7,
     operators8,
-    operators9,
 };
 
 int operatorPrecedence(char *operator) {
@@ -495,8 +485,12 @@ abstractNode *buildBinary(token *tokens, int numTokens, int *currToken) {
     }
     stackNode *operatorStack = newStack();
     stackNode *operandStack = newStack();
+
+    int prevOperand = 0;
+
     while (*currToken < numTokens) {
         if (tokens[*currToken].type == OP) {
+            prevOperand = 0;
             char *currTokenContent = tokens[*currToken].content;
             if (!strcmp(currTokenContent, "(")) {
                 abstractNode *paren = buildNode(PAREN, "(");
@@ -538,16 +532,39 @@ abstractNode *buildBinary(token *tokens, int numTokens, int *currToken) {
                     abstractNode *emptyBinary = buildNode(BINARY, currTokenContent);
                     push(&operatorStack, emptyBinary);
                     (*currToken)++;
-                // the operator is not valid or accounted for, so ERROR
+                // the operator is not valid or accounted for, so end of binary
                 } else {
-                    printf("ERROR: operator %s not valid\n", currTokenContent);
-                    return NULL;
+                    break;
                 }
             }
         // either a func call, var, or literal
         } else {
-            abstractNode *lit = buildLit(tokens, numTokens, currToken);
-            push(&operandStack, lit);
+            if (prevOperand) {
+                break;
+            } else {
+                prevOperand = 1;
+
+                tokenType type = tokens[*currToken].type;
+                if (type == INT || type == FLT || type == STR) {
+                    abstractNode *litChild = buildLit(tokens, numTokens, currToken);
+                    push(&operandStack, litChild);
+                } else if (type == IDEN) {
+                    // this can either be a var or a func call
+                    if (tokens[(*currToken) + 1].type == OP &&
+                        !strcmp(tokens[(*currToken) + 1].content, "(")) {
+                        // this is a FUNC CALL
+                        abstractNode *funcCallChild = buildFuncCall(tokens, numTokens, currToken);
+                        push(&operandStack, funcCallChild);
+                    } else {
+                        // this for sure a VAR
+                        abstractNode *varChild = buildVar(tokens, numTokens, currToken);
+                        push(&operandStack, varChild);
+                    }
+                } else {
+                    printf("ERROR: expected IDEN, INT, FLT, or STR\n");
+                    return NULL;
+                }
+            }
         }
     }
     while (!isEmpty(operatorStack)) {
@@ -878,7 +895,7 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
 
 int build(token *tokens, int numTokens, abstractNode **root) {
     int currToken = 0;
-    *root = buildBody(tokens, numTokens, &currToken);
+    *root = buildBinary(tokens, numTokens, &currToken);
 
     // no leftover tokens
     if (currToken == numTokens) {

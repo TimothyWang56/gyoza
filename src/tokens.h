@@ -7,7 +7,6 @@ typedef struct Token {
     int line;
     tokenType type;
     char *content;
-
 } token;
 
 
