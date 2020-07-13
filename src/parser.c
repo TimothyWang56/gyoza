@@ -8,6 +8,7 @@
 // headers for functions to fix compile errors (implicit declarations)
 abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken);
 abstractNode *buildBody(token *tokens, int numTokens, int *currToken);
+abstractNode *buildBinary(token *tokens, int numTokens, int *currToken);
 
 // Outline for AST Structure
 
@@ -321,18 +322,23 @@ abstractNode *buildCondition(token *tokens, int numTokens, int *currToken) {
             return node;
         } else {
             token *t = tokenAfterFuncCall(tokens, numTokens, *currToken);
-            if ((*t).type == OP && !strcmp((*t).content, "?")) {
+            if (tokens[(*currToken) + 1].type == OP && !strcmp(tokens[(*currToken) + 1].content, "(") &&
+                (*t).type == OP && !strcmp((*t).content, "?")) {
                 abstractNode *funcChild = buildFuncCall(tokens, numTokens, currToken);
                 node->children[0] = funcChild;
                 return node;
             } else {
                 // either BINARY or error
-                return NULL;
+                abstractNode *binaryChild = buildBinary(tokens, numTokens, currToken);
+                node->children[0] = binaryChild;
+                return node;
             }
         }
     } else {
         // either BINARY or error
-        return NULL;
+        abstractNode *binaryChild = buildBinary(tokens, numTokens, currToken);
+        node->children[0] = binaryChild;
+        return node;
     }
 }
 
@@ -483,6 +489,7 @@ abstractNode *buildBinary(token *tokens, int numTokens, int *currToken) {
         printf("ERROR: currToken >= numTokens in buildBinary\n");
         return NULL;
     }
+
     stackNode *operatorStack = newStack();
     stackNode *operandStack = newStack();
 
@@ -621,11 +628,13 @@ abstractNode *buildFuncCall(token *tokens, int numTokens, int *currToken) {
                             addChild(node, child);
                         // must be BINARY case or ERROR
                         } else {
-
+                            abstractNode *binaryChild = buildBinary(tokens, numTokens, currToken);
+                            addChild(node, binaryChild);
                         }
                     // at this point, must be BINARY case or ERROR
                     } else {
-
+                        abstractNode *binaryChild = buildBinary(tokens, numTokens, currToken);
+                        addChild(node, binaryChild);
                     }
                 }
 
@@ -716,11 +725,15 @@ abstractNode *buildAssignVar(token *tokens, int numTokens, int *currToken) {
                                 return node;
                             // must be BINARY case or ERROR
                             } else {
-                                return NULL;
+                                abstractNode *binaryChild = buildBinary(tokens, numTokens, currToken);
+                                node->children[1] = binaryChild;
+                                return node;
                             }
                         // at this point, must be BINARY case or ERROR
                         } else {
-                            return NULL;
+                            abstractNode *binaryChild = buildBinary(tokens, numTokens, currToken);
+                            node->children[1] = binaryChild;
+                            return node;
                         }
                     }
                     
@@ -831,7 +844,6 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
     }
 
     while (*currToken < numTokens) {
-        // determine what kind of NodeType we're making?
         // either IF, IFELSE, ASSIGNVAR, FUNCDEF, FUNCCALL
         if (tokens[*currToken].type == OP && !strcmp(tokens[*currToken].content, "}")) {
             printf("closing bracket found\n");
@@ -868,25 +880,16 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
         } else if (tokens[*currToken].type == IDEN &&
             tokens[(*currToken) + 1].type == OP &&
             !strcmp(tokens[(*currToken) + 1].content, "(")) {
-            token *t = tokenAfterFuncCall(tokens, numTokens, *currToken);
-            // FUNCCALL case
-            if ((*t).line != tokens[*currToken].line) {
-                abstractNode *child = buildFuncCall(tokens, numTokens, currToken);
-                addChild(node, child);
-            // must be BINARY case or ERROR
-            } else {
-                return NULL;
-            }
-        // currently this IF/IFELSE check doesn't take into account BINARYS
-        } else if ((tokens[*currToken].type == IDEN &&
+            abstractNode *child = buildFuncCall(tokens, numTokens, currToken);
+            addChild(node, child);
+        } else if (tokens[*currToken].type == IDEN &&
             tokens[(*currToken) + 1].type == OP &&
-            !strcmp(tokens[(*currToken) + 1].content, "?")) ||
-            !strcmp(tokenAfterFuncCall(tokens, numTokens, *currToken)->content, "?")) {
+            !strcmp(tokens[(*currToken) + 1].content, "=")) {
+            abstractNode *binaryChild = buildBinary(tokens, numTokens, currToken);
+            addChild(node, binaryChild);
+        } else {
             abstractNode *child = buildIfOrIfElse(tokens, numTokens, currToken);
             addChild(node, child);
-        } else {
-            printf("case not handled yet\n");
-            break;
         }
     }
 
@@ -895,7 +898,7 @@ abstractNode *buildBody(token *tokens, int numTokens, int *currToken) {
 
 int build(token *tokens, int numTokens, abstractNode **root) {
     int currToken = 0;
-    *root = buildBinary(tokens, numTokens, &currToken);
+    *root = buildBody(tokens, numTokens, &currToken);
 
     // no leftover tokens
     if (currToken == numTokens) {
