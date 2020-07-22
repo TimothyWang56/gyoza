@@ -3,4 +3,5 @@ src/gyoza.dSYM/*
 src/*.txt
 src/stack
 
-tests/tests
+tests/tokenTests
+tests/parserTests

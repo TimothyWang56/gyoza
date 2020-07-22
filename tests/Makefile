@@ -1,11 +1,15 @@
 CC = gcc
 CFLAGS = -Wall -Wunused -Wextra -std=c99
-OUT = tests
 
 token: tokenTest/tokensTest.c ../src/lexer.c
-	$(CC) $(CFLAGS) $^ -o $(OUT)
+	$(CC) $(CFLAGS) $^ -o tokenTests
 
-all: token
+parser: parserTest/parserTest.c ../src/lexer.c
+	$(CC) $(CFLAGS) $^ -o parserTests
+
+tests: token parser
+	./tokenTests
+	./parserTests
 
 clean:
 	rm -rf $(OUT)
