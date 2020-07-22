@@ -5,7 +5,7 @@
 #include "nodes.h"
 
 abstractNode *buildNode(nodeType type, char *content);
-void addChild(abstractNode *node, abstractNode *child) {
+void addChild(abstractNode *node, abstractNode *child);
 abstractNode *buildLit(token *tokens, int numTokens, int *currToken);
 abstractNode *buildVar(token *tokens, int numTokens, int *currToken);
 abstractNode *buildFuncReturn(token *tokens, int numTokens, int *currToken);
