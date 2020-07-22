@@ -3,6 +3,7 @@
 
 #include "tokens.h"
 #include "nodes.h"
+#include "stack.h"
 
 abstractNode *buildNode(nodeType type, char *content);
 void addChild(abstractNode *node, abstractNode *child);
