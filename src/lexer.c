@@ -240,7 +240,7 @@ int tokenizeLine(char line[], int lineNumber, int *numLineTokens, token **lineTo
 }
 
 // NOTE: whatever calls this function must free tokens and the contents of the tokens after using them
-int tokenize(char* fileName, token **tokens, int *numTokens) {
+int tokenize(char *fileName, token **tokens, int *numTokens) {
     FILE* file = fopen(fileName, "r");
     char line[256];
     int lineNumber = 1;

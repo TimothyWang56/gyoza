@@ -1,0 +1,5 @@
+(count > 0) ? {
+    print("Greater than 0")
+} / default ? {
+    print("Equal to or less than 0")
+}
